@@ -1200,7 +1200,7 @@ WORLDS.luftvern={
     "###################"
   ],
   exits:[
-    {id:"luftvern-skyttergraven",pair:"skyttergraven-luftvern",x:9,y:8,target:"skyttergraven",tx:10,ty:12,tdir:"down",label:"TILBAKE TIL SKYTTERGRAVEN"}
+    {id:"luftvern-skyttergraven",pair:"skyttergraven-luftvern",x:9,y:8,target:"skyttergraven",tx:9,ty:13,tdir:"left",label:"TILBAKE TIL SKYTTERGRAVEN"}
   ],
   props:[
     {x:6,y:1,w:5,h:1,kind:"warningBannerLarge"},
@@ -1212,7 +1212,7 @@ WORLDS.luftvern={
     {x:12,y:5,w:2,h:1,kind:"shellRackLarge",solid:true},
     {x:14,y:5,w:2,h:1,kind:"ammoCratesLarge",solid:true},
     {x:8,y:6,w:3,h:1,kind:"commandTableLarge",solid:true},
-    {x:9,y:7,kind:"sign",text:"BRUK KANONEN"}
+    {x:9,y:7,kind:"sign",text:"LUFTVERN"}
   ]
 };
 
@@ -1524,8 +1524,7 @@ function move(dx,dy){
 
 
 const ARTILLERY_STATIONS=[
- {x:8,y:4,label:"bruk luftvernkanonen"},
- {x:9,y:7,label:"start bonusspillet"}
+ {x:8,y:4,label:"bruk luftvernkanonen"}
 ];
 
 function nearestArtilleryStation(){
@@ -1702,6 +1701,9 @@ function openArtillery(){
  document.getElementById("artilleryStartBtn").disabled=false;
  ART.running=false;
  ART.heldLeft=false;ART.heldRight=false;
+ S.held.up=false;S.held.down=false;S.held.left=false;S.held.right=false;
+ S.moving=false;S.pendingExit=null;S.walkBob=0;
+ S.x=S.tileX*TILE+16;S.y=S.tileY*TILE+16;
  hideArtilleryScoreEntry();
  loadArtilleryScores();
  renderArtilleryScores();
@@ -1711,6 +1713,11 @@ function openArtillery(){
 function closeArtillery(){
  ART.running=false;
  ART.heldLeft=false;ART.heldRight=false;
+ S.held.up=false;S.held.down=false;S.held.left=false;S.held.right=false;
+ S.moving=false;S.pendingExit=null;S.walkBob=0;
+ S.x=S.tileX*TILE+16;S.y=S.tileY*TILE+16;
+ S.moveFromX=S.x;S.moveFromY=S.y;
+ S.targetPxX=S.x;S.targetPxY=S.y;
  document.getElementById("artilleryOverlay").style.display="none";
  document.getElementById("artilleryOverlay").setAttribute("aria-hidden","true");
  saveGame(false);
@@ -1756,7 +1763,7 @@ function startArtillery(){
 
 function artilleryFire(now=performance.now()){
  if(!ART.running)return;
- if(now-ART.lastShot<250)return;
+ if(now-ART.lastShot<500)return;
  ART.lastShot=now;
  ART.shells.push({x:ART.cannonX,y:425,vy:-440});
 }
@@ -1943,7 +1950,10 @@ function artilleryKeyDown(e){
  }
  if(k==="a"||e.key==="ArrowLeft")ART.heldLeft=true;
  if(k==="d"||e.key==="ArrowRight")ART.heldRight=true;
- if(e.key===" "||e.key==="Enter")artilleryFire();
+ if(e.key===" "||e.key==="Enter"){
+  if(e.repeat)return;
+  artilleryFire();
+ }
 }
 
 function artilleryKeyUp(e){
@@ -3495,20 +3505,29 @@ function drawScene(){
    drawNpcSprite(n,sx,sy,idleY);
    const known=S.found.has(n.id);
    if(n.sourceKind){
-    // Dokumentkilder får et lite papir-/forstørrelsesglass-symbol.
     const my=sy-43;
-    ctx.fillStyle=known?"#637157":"#d4b46e";
+    ctx.fillStyle=known?"#667b5b":"#d4b46e";
     ctx.fillRect(sx-7,my-8,11,13);
     ctx.strokeStyle="#f5e7c8";ctx.lineWidth=1;ctx.strokeRect(sx-7,my-8,11,13);
     ctx.beginPath();ctx.arc(sx+5,my+2,4,0,Math.PI*2);ctx.stroke();
     ctx.beginPath();ctx.moveTo(sx+8,my+5);ctx.lineTo(sx+12,my+9);ctx.stroke();
-   }else{
-    ctx.fillStyle=known?"#637157":"#d4b46e";
-    ctx.beginPath();ctx.arc(sx,sy-54+idleY,4,0,Math.PI*2);ctx.fill();
-    if(!known){
-     ctx.fillStyle="#fff0d1";ctx.font="bold 15px monospace";
-     ctx.fillText("…",sx-4,sy-62+idleY);
+    if(known){
+     ctx.fillStyle="#4f7048";
+     ctx.beginPath();ctx.arc(sx+13,my-9,8,0,Math.PI*2);ctx.fill();
+     ctx.strokeStyle="#dce9cf";ctx.lineWidth=2;
+     ctx.beginPath();ctx.moveTo(sx+9,my-9);ctx.lineTo(sx+12,my-6);ctx.lineTo(sx+17,my-12);ctx.stroke();
     }
+   }else if(known){
+    const bx=sx,by=sy-57+idleY;
+    ctx.fillStyle="#4f7048";
+    ctx.beginPath();ctx.arc(bx,by,8,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle="#e1efd4";ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(bx-4,by);ctx.lineTo(bx-1,by+3);ctx.lineTo(bx+5,by-4);ctx.stroke();
+   }else{
+    ctx.fillStyle="#d4b46e";
+    ctx.beginPath();ctx.arc(sx,sy-54+idleY,4,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle="#fff0d1";ctx.font="bold 15px monospace";
+    ctx.fillText("…",sx-4,sy-62+idleY);
    }
   }
  }
@@ -3522,7 +3541,11 @@ function drawScene(){
   ctx.fillStyle="#f6efda";ctx.font="12px monospace";ctx.textAlign="center";
   if(station)ctx.fillText("E: "+station.label,sx,sy-85);
   else if(cup)ctx.fillText("E: plukk opp feltkrus",sx,sy-85);
-  else ctx.fillText("E: "+(n.action||("snakk med "+n.name)),sx,sy-85);
+  else{
+   const done=S.found.has(n.id);
+   const action=n.action||("snakk med "+n.name);
+   ctx.fillText(done?("✓ Ferdig · E: "+action):("E: "+action),sx,sy-85);
+  }
   ctx.textAlign="left";
  }
 
