@@ -562,6 +562,49 @@ canvas{display:block;width:100%;height:auto;border:2px solid #070807;image-rende
  .scoreEntryRow .artilleryButton{flex:1}
 }
 
+.gemetzelPanel{
+  display:none;
+  margin-top:12px;
+  padding:12px;
+  border:2px solid #8f332d;
+  background:linear-gradient(180deg,#2c1715,#17110f);
+  box-shadow:inset 0 0 0 1px rgba(255,155,118,.08),0 0 18px rgba(120,25,20,.18);
+}
+.gemetzelEyebrow{
+  color:#e28d74;
+  font:900 11px/1.2 monospace;
+  letter-spacing:.16em;
+  margin-bottom:8px;
+}
+.gemetzelButton{
+  width:100%;
+  border:2px solid #d05b49;
+  background:#8f2e27;
+  color:#ffe8c8;
+  padding:12px 14px;
+  font:900 14px/1.1 monospace;
+  letter-spacing:.06em;
+  cursor:pointer;
+  text-shadow:0 1px 0 #3e1110;
+}
+.gemetzelButton:hover{background:#a83a30}
+.gemetzelButton:disabled{opacity:.45;cursor:not-allowed}
+.gemetzelMeta{
+  margin-top:8px;
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+  color:#bda996;
+  font:800 10px/1.35 monospace;
+}
+.gemetzelRecord{color:#f0c27b}
+.gemetzelUnlockFlash{
+  animation:gemetzelPulse .65s steps(2,end) 4;
+}
+@keyframes gemetzelPulse{
+  50%{box-shadow:0 0 0 4px rgba(215,77,58,.28),0 0 28px rgba(215,77,58,.45)}
+}
 
 #basicFacts{
   margin-top:9px;
@@ -695,8 +738,7 @@ canvas{display:block;width:100%;height:auto;border:2px solid #070807;image-rende
 
     <div id="artilleryInfo">
       Flytt siktet med <strong>A/D</strong> eller <strong>←/→</strong>.
-      Skyt med <strong>mellomrom</strong> eller <strong>Enter</strong>.
-      Treff Den røde baronens fly så mange ganger du klarer på 60 sekunder. Flyet blir raskere og vanskeligere å treffe underveis.
+      Skyt med <strong>mellomrom</strong> eller <strong>Enter</strong>. Treff Den røde baronens fly så mange ganger du klarer på 60 sekunder. <strong>Pass på: flyet skyter tilbake!</strong> Flytt kanonen for å unngå skuddene.
     </div>
 
     <div class="artilleryActions">
@@ -705,6 +747,15 @@ canvas{display:block;width:100%;height:auto;border:2px solid #070807;image-rende
         <button id="artLeftBtn" class="artilleryButton">◀</button>
         <button id="artFireBtn" class="artilleryButton fire">FYR!</button>
         <button id="artRightBtn" class="artilleryButton">▶</button>
+      </div>
+    </div>
+
+    <div id="gemetzelPanel" class="gemetzelPanel">
+      <div class="gemetzelEyebrow">☠ HEMMELIG MODUS · KUN FOR DE SOM HAR KLART 16+ POENG</div>
+      <button id="gemetzelStartBtn" class="gemetzelButton">ABSOLUTER GEMETZELMODUS!</button>
+      <div class="gemetzelMeta">
+        <span>INGEN SKYTING · BARE OVERLEV</span>
+        <span id="gemetzelRecord" class="gemetzelRecord">REKORD: –</span>
       </div>
     </div>
 
@@ -1592,6 +1643,7 @@ function choiceOrderFor(n){
 
 const ART={
  running:false,
+ mode:"normal",
  score:0,
  startedAt:0,
  endAt:0,
@@ -1601,13 +1653,77 @@ const ART={
  heldRight:false,
  lastShot:0,
  shells:[],
+ enemyShots:[],
+ enemyWarnings:[],
  bursts:[],
  pendingScore:false,
+ lastEnemyShot:0,
+ cannonStunUntil:0,
+ hitsTaken:0,
+ gemetzelSurvival:0,
+ gemetzelGameOver:false,
  plane:{x:-90,y:115,baseY:115,vx:180,dir:1,w:88,h:32,phase:0}
 };
 
 const ARTILLERY_SCORE_KEY="trenchBound1916_artillery_scores_v1";
+const GEMETZEL_UNLOCK_KEY="trenchBound1916_gemetzel_unlocked_v1";
+const GEMETZEL_BEST_KEY="trenchBound1916_gemetzel_best_v1";
 let ARTILLERY_SCORES=[];
+let GEMETZEL_UNLOCKED=false;
+let GEMETZEL_BEST=0;
+
+function loadGemetzelProgress(){
+ GEMETZEL_UNLOCKED=false;
+ GEMETZEL_BEST=0;
+ if(CAN_SAVE){
+  try{
+   GEMETZEL_UNLOCKED=localStorage.getItem(GEMETZEL_UNLOCK_KEY)==="1";
+   GEMETZEL_BEST=Math.max(0,Number(localStorage.getItem(GEMETZEL_BEST_KEY))||0);
+  }catch(err){}
+ }
+ if(S.artilleryBest>15 || ARTILLERY_SCORES.some(x=>Number(x.score)>15)){
+  GEMETZEL_UNLOCKED=true;
+  if(CAN_SAVE){
+   try{localStorage.setItem(GEMETZEL_UNLOCK_KEY,"1")}catch(err){}
+  }
+ }
+ return GEMETZEL_UNLOCKED;
+}
+
+function saveGemetzelBest(seconds){
+ GEMETZEL_BEST=Math.max(GEMETZEL_BEST,Number(seconds)||0);
+ if(CAN_SAVE){
+  try{localStorage.setItem(GEMETZEL_BEST_KEY,String(GEMETZEL_BEST))}catch(err){}
+ }
+ updateGemetzelUI();
+}
+
+function unlockGemetzel(showFlash=false){
+ const wasUnlocked=GEMETZEL_UNLOCKED;
+ GEMETZEL_UNLOCKED=true;
+ if(CAN_SAVE){
+  try{localStorage.setItem(GEMETZEL_UNLOCK_KEY,"1")}catch(err){}
+ }
+ updateGemetzelUI();
+ if(showFlash && !wasUnlocked){
+  const panel=document.getElementById("gemetzelPanel");
+  panel.classList.remove("gemetzelUnlockFlash");
+  void panel.offsetWidth;
+  panel.classList.add("gemetzelUnlockFlash");
+ }
+}
+
+function updateGemetzelUI(){
+ const panel=document.getElementById("gemetzelPanel");
+ const record=document.getElementById("gemetzelRecord");
+ const btn=document.getElementById("gemetzelStartBtn");
+ if(!panel||!record||!btn)return;
+ panel.style.display=GEMETZEL_UNLOCKED?"block":"none";
+ record.textContent=GEMETZEL_BEST>0
+  ?("REKORD: "+GEMETZEL_BEST.toFixed(1).replace(".",",")+" SEK")
+  :"REKORD: –";
+ btn.disabled=ART.running;
+}
 
 function loadArtilleryScores(){
  if(!CAN_SAVE){ARTILLERY_SCORES=[];return ARTILLERY_SCORES}
@@ -1625,6 +1741,8 @@ function loadArtilleryScores(){
 function saveArtilleryScores(){
  if(!CAN_SAVE)return;
  try{localStorage.setItem(ARTILLERY_SCORE_KEY,JSON.stringify(ARTILLERY_SCORES.slice(0,5)))}catch(err){}
+ loadGemetzelProgress();
+ updateGemetzelUI();
 }
 function renderArtilleryScores(){
  const box=document.getElementById("artilleryHighscores");
@@ -1681,7 +1799,10 @@ function artilleryDifficulty(now=performance.now()){
   progress,
   speedBonus:elapsed*2.15,
   wobble:level===1?0:level===2?12:level===3?24:38,
-  wobbleSpeed:level===1?0:level===2?2.2:level===3?3.2:4.5
+  wobbleSpeed:level===1?0:level===2?2.2:level===3?3.2:4.5,
+  enemyInterval:level===1?2600:level===2?2200:level===3?1750:1350,
+  enemySpeed:level===1?165:level===2?190:level===3?220:255,
+  warningTime:level===1?650:level===2?580:level===3?500:420
  };
 }
 
@@ -1699,20 +1820,28 @@ function openArtillery(){
  document.getElementById("artilleryOverlay").style.display="flex";
  document.getElementById("artilleryOverlay").setAttribute("aria-hidden","false");
  document.getElementById("artilleryStartBtn").disabled=false;
+ document.getElementById("artFireBtn").disabled=false;
  ART.running=false;
+ ART.mode="normal";
+ ART.gemetzelGameOver=false;
  ART.heldLeft=false;ART.heldRight=false;
  S.held.up=false;S.held.down=false;S.held.left=false;S.held.right=false;
  S.moving=false;S.pendingExit=null;S.walkBob=0;
  S.x=S.tileX*TILE+16;S.y=S.tileY*TILE+16;
  hideArtilleryScoreEntry();
  loadArtilleryScores();
+ loadGemetzelProgress();
  renderArtilleryScores();
+ updateGemetzelUI();
  drawArtillery(performance.now());
 }
 
 function closeArtillery(){
  ART.running=false;
+ ART.mode="normal";
+ ART.gemetzelGameOver=false;
  ART.heldLeft=false;ART.heldRight=false;
+ document.getElementById("artFireBtn").disabled=false;
  S.held.up=false;S.held.down=false;S.held.left=false;S.held.right=false;
  S.moving=false;S.pendingExit=null;S.walkBob=0;
  S.x=S.tileX*TILE+16;S.y=S.tileY*TILE+16;
@@ -1746,6 +1875,8 @@ function resetPlane(first=false){
 
 function startArtillery(){
  if(!S.artilleryUnlocked)return;
+ ART.mode="normal";
+ ART.gemetzelGameOver=false;
  ART.running=true;
  ART.score=0;
  ART.startedAt=performance.now();
@@ -1753,28 +1884,199 @@ function startArtillery(){
  ART.lastFrame=ART.startedAt;
  ART.cannonX=384;
  ART.shells=[];
+ ART.enemyShots=[];
+ ART.enemyWarnings=[];
  ART.bursts=[];
  ART.lastShot=0;
+ ART.lastEnemyShot=ART.startedAt+1200;
+ ART.cannonStunUntil=0;
+ ART.hitsTaken=0;
  hideArtilleryScoreEntry();
  resetPlane(true);
  document.getElementById("artilleryStartBtn").disabled=true;
+ document.getElementById("artFireBtn").disabled=false;
+ const gbtn=document.getElementById("gemetzelStartBtn");
+ if(gbtn)gbtn.disabled=true;
  requestAnimationFrame(artilleryLoop);
 }
 
 function artilleryFire(now=performance.now()){
- if(!ART.running)return;
+ if(!ART.running||ART.mode==="gemetzel")return;
  if(now-ART.lastShot<500)return;
  ART.lastShot=now;
  ART.shells.push({x:ART.cannonX,y:425,vy:-440});
 }
 
-function artilleryLoop(now){
+function queueEnemyShot(now,difficulty){
+ if(!ART.running)return;
+ const p=ART.plane;
+ ART.enemyWarnings.push({
+  x:ART.cannonX,
+  created:now,
+  fireAt:now+difficulty.warningTime,
+  planeX:p.x+p.w/2,
+  planeY:p.y+p.h/2,
+  speed:difficulty.enemySpeed
+ });
+ ART.lastEnemyShot=now;
+}
+
+function gemetzelDifficulty(now=performance.now()){
+ const elapsed=Math.max(0,(now-ART.startedAt)/1000);
+ return {
+  elapsed,
+  planeSpeed:340+elapsed*8.5,
+  interval:Math.max(175,620-elapsed*10),
+  warningTime:Math.max(105,300-elapsed*3.1),
+  bulletSpeed:430+elapsed*11,
+  wobble:28+Math.min(42,elapsed*.9),
+  wobbleSpeed:4.6+Math.min(5,elapsed*.09)
+ };
+}
+
+function resetGemetzelPlane(first=false,now=performance.now()){
+ const d=gemetzelDifficulty(now);
+ const fromLeft=Math.random()<.5;
+ const speed=d.planeSpeed+Math.random()*115;
+ ART.plane.dir=fromLeft?1:-1;
+ ART.plane.vx=speed*ART.plane.dir;
+ ART.plane.x=fromLeft?-100:868;
+ ART.plane.baseY=62+Math.random()*160;
+ ART.plane.y=ART.plane.baseY;
+ ART.plane.phase=Math.random()*Math.PI*2;
+ ART.plane.w=88;ART.plane.h=32;
+ if(first){
+  ART.plane.dir=1;
+  ART.plane.x=-80;
+  ART.plane.baseY=112;
+  ART.plane.y=112;
+  ART.plane.vx=360;
+ }
+}
+
+function startGemetzel(){
+ if(!S.artilleryUnlocked||!GEMETZEL_UNLOCKED)return;
+ ART.mode="gemetzel";
+ ART.running=true;
+ ART.score=0;
+ ART.startedAt=performance.now();
+ ART.endAt=0;
+ ART.lastFrame=ART.startedAt;
+ ART.cannonX=384;
+ ART.shells=[];
+ ART.enemyShots=[];
+ ART.enemyWarnings=[];
+ ART.bursts=[];
+ ART.lastEnemyShot=ART.startedAt-500;
+ ART.gemetzelSurvival=0;
+ ART.gemetzelGameOver=false;
+ ART.heldLeft=false;ART.heldRight=false;
+ hideArtilleryScoreEntry();
+ resetGemetzelPlane(true,ART.startedAt);
+ document.getElementById("artilleryStartBtn").disabled=true;
+ document.getElementById("gemetzelStartBtn").disabled=true;
+ document.getElementById("artFireBtn").disabled=true;
+ requestAnimationFrame(artilleryLoop);
+}
+
+function queueGemetzelShot(now,d){
+ const p=ART.plane;
+ ART.enemyWarnings.push({
+  x:ART.cannonX,
+  fireAt:now+d.warningTime,
+  planeX:p.x+p.w/2,
+  planeY:p.y+p.h/2,
+  speed:d.bulletSpeed
+ });
+ ART.lastEnemyShot=now;
+}
+
+function endGemetzel(now){
+ ART.running=false;
+ ART.gemetzelGameOver=true;
+ ART.gemetzelSurvival=Math.max(0,(now-ART.startedAt)/1000);
+ saveGemetzelBest(ART.gemetzelSurvival);
+ document.getElementById("artilleryStartBtn").disabled=false;
+ document.getElementById("gemetzelStartBtn").disabled=false;
+ document.getElementById("gemetzelStartBtn").textContent="PRØV GEMETZELMODUS IGJEN";
+ document.getElementById("artFireBtn").disabled=true;
+ drawArtillery(now);
+}
+
+function gemetzelLoop(now){
  if(!ART.running){drawArtillery(now);return}
  const dt=Math.min(.04,Math.max(0,(now-ART.lastFrame)/1000));
  ART.lastFrame=now;
 
- if(ART.heldLeft)ART.cannonX-=250*dt;
- if(ART.heldRight)ART.cannonX+=250*dt;
+ if(ART.heldLeft)ART.cannonX-=305*dt;
+ if(ART.heldRight)ART.cannonX+=305*dt;
+ ART.cannonX=Math.max(42,Math.min(726,ART.cannonX));
+
+ const d=gemetzelDifficulty(now);
+ ART.gemetzelSurvival=d.elapsed;
+
+ ART.plane.x+=ART.plane.vx*dt;
+ ART.plane.y=ART.plane.baseY+Math.sin(d.elapsed*d.wobbleSpeed+ART.plane.phase)*d.wobble;
+ ART.plane.y=Math.max(48,Math.min(250,ART.plane.y));
+ if((ART.plane.dir>0&&ART.plane.x>880)||(ART.plane.dir<0&&ART.plane.x<-110)){
+  resetGemetzelPlane(false,now);
+ }
+
+ if(now-ART.lastEnemyShot>=d.interval){
+  queueGemetzelShot(now,d);
+ }
+
+ const nextWarnings=[];
+ for(const w of ART.enemyWarnings){
+  if(now>=w.fireAt){
+   const dx=w.x-w.planeX;
+   const dy=430-w.planeY;
+   const len=Math.max(1,Math.hypot(dx,dy));
+   ART.enemyShots.push({
+    x:w.planeX,y:w.planeY,
+    vx:(dx/len)*w.speed,
+    vy:(dy/len)*w.speed
+   });
+  }else nextWarnings.push(w);
+ }
+ ART.enemyWarnings=nextWarnings;
+
+ for(const es of ART.enemyShots){
+  es.x+=es.vx*dt;
+  es.y+=es.vy*dt;
+ }
+ ART.enemyShots=ART.enemyShots.filter(es=>es.y<510&&es.x>-40&&es.x<808);
+
+ let hit=false;
+ for(const es of ART.enemyShots){
+  if(es.x>ART.cannonX-30&&es.x<ART.cannonX+30&&es.y>385&&es.y<465){
+   hit=true;break;
+  }
+ }
+ if(hit){
+  ART.bursts.push({x:ART.cannonX,y:418,t:0,enemy:true});
+  endGemetzel(now);
+  return;
+ }
+
+ for(const b of ART.bursts)b.t+=dt;
+ ART.bursts=ART.bursts.filter(b=>b.t<.55);
+
+ drawArtillery(now);
+ requestAnimationFrame(artilleryLoop);
+}
+
+function artilleryLoop(now){
+ if(!ART.running){drawArtillery(now);return}
+ if(ART.mode==="gemetzel"){gemetzelLoop(now);return}
+ const dt=Math.min(.04,Math.max(0,(now-ART.lastFrame)/1000));
+ ART.lastFrame=now;
+
+ const stunned=now<ART.cannonStunUntil;
+ if(!stunned){
+  if(ART.heldLeft)ART.cannonX-=250*dt;
+  if(ART.heldRight)ART.cannonX+=250*dt;
+ }
  ART.cannonX=Math.max(48,Math.min(720,ART.cannonX));
 
  const difficulty=artilleryDifficulty(now);
@@ -1787,6 +2089,33 @@ function artilleryLoop(now){
  if((ART.plane.dir>0&&ART.plane.x>880)||(ART.plane.dir<0&&ART.plane.x<-110)){
   resetPlane();
  }
+
+ if(now-ART.lastEnemyShot>=difficulty.enemyInterval){
+  queueEnemyShot(now,difficulty);
+ }
+
+ const nextWarnings=[];
+ for(const w of ART.enemyWarnings){
+  if(now>=w.fireAt){
+   const dx=w.x-w.planeX;
+   const dy=430-w.planeY;
+   const len=Math.max(1,Math.hypot(dx,dy));
+   ART.enemyShots.push({
+    x:w.planeX,y:w.planeY,
+    vx:(dx/len)*w.speed,
+    vy:(dy/len)*w.speed
+   });
+  }else{
+   nextWarnings.push(w);
+  }
+ }
+ ART.enemyWarnings=nextWarnings;
+
+ for(const es of ART.enemyShots){
+  es.x+=es.vx*dt;
+  es.y+=es.vy*dt;
+ }
+ ART.enemyShots=ART.enemyShots.filter(es=>es.y<500&&es.x>-30&&es.x<798);
 
  for(const sh of ART.shells)sh.y+=sh.vy*dt;
  ART.shells=ART.shells.filter(sh=>sh.y>-20);
@@ -1808,6 +2137,23 @@ function artilleryLoop(now){
   resetPlane();
  }
 
+ let cannonHit=-1;
+ if(now>=ART.cannonStunUntil){
+  for(let i=0;i<ART.enemyShots.length;i++){
+   const es=ART.enemyShots[i];
+   if(es.x>ART.cannonX-30&&es.x<ART.cannonX+30&&es.y>382&&es.y<463){
+    cannonHit=i;break;
+   }
+  }
+ }
+ if(cannonHit>=0){
+  ART.enemyShots.splice(cannonHit,1);
+  ART.score=Math.max(0,ART.score-1);
+  ART.hitsTaken++;
+  ART.cannonStunUntil=now+650;
+  ART.bursts.push({x:ART.cannonX,y:418,t:0,enemy:true});
+ }
+
  for(const b of ART.bursts)b.t+=dt;
  ART.bursts=ART.bursts.filter(b=>b.t<.55);
 
@@ -1821,6 +2167,10 @@ function artilleryLoop(now){
   }
   document.getElementById("artilleryStartBtn").disabled=false;
   document.getElementById("artilleryStartBtn").textContent="SPILL IGJEN · 60 SEK";
+  document.getElementById("artFireBtn").disabled=false;
+  if(ART.score>15)unlockGemetzel(true);
+  const gbtn=document.getElementById("gemetzelStartBtn");
+  if(gbtn)gbtn.disabled=false;
   render();
   loadArtilleryScores();
   renderArtilleryScores();
@@ -1833,7 +2183,106 @@ function artilleryLoop(now){
  requestAnimationFrame(artilleryLoop);
 }
 
+function drawGemetzel(now){
+ const g=artCtx,W=artCanvas.width,H=artCanvas.height;
+ const elapsed=ART.startedAt?Math.max(0,(now-ART.startedAt)/1000):0;
+
+ // Darker, more frantic battlefield
+ g.fillStyle="#777d70";g.fillRect(0,0,W,H);
+ g.fillStyle="#979789";g.fillRect(0,0,W,86);
+ const drift=(now/34)%900;
+ g.fillStyle="rgba(222,216,193,.42)";
+ for(const [cx,cy] of [[80,65],[315,42],[575,80],[825,52]]){
+  const x=((cx-drift*.12+900)%900)-60;
+  g.fillRect(x,cy,72,12);g.fillRect(x+14,cy-10,38,10);
+ }
+ g.fillStyle="#695845";g.fillRect(0,300,W,180);
+ g.fillStyle="#554639";g.fillRect(0,337,W,143);
+ g.fillStyle="#3f342e";
+ for(const [x,y,w] of [[90,395,70],[265,365,56],[500,410,82],[690,370,58]]){
+  g.beginPath();g.ellipse(x,y,w/2,10,0,0,Math.PI*2);g.fill();
+ }
+
+ // Red Baron
+ const p=ART.plane;
+ g.save();
+ g.translate(p.x+p.w/2,p.y+p.h/2);
+ if(p.dir<0)g.scale(-1,1);
+ g.translate(-p.w/2,-p.h/2);
+ g.fillStyle="#6d201d";g.fillRect(15,12,55,10);
+ g.fillStyle="#b53b31";g.fillRect(28,2,40,7);
+ g.fillStyle="#a72f28";g.fillRect(25,24,43,6);
+ g.fillStyle="#47201e";g.fillRect(66,8,10,18);
+ g.fillStyle="#da7d67";g.fillRect(18,14,16,3);
+ g.fillStyle="#262622";g.fillRect(8,10,5,15);g.fillRect(10,4,2,28);
+ g.fillStyle="#e0c8a2";g.fillRect(37,10,7,5);
+ g.fillStyle="#511a18";g.fillRect(41,4,2,26);
+ g.restore();
+
+ // Warning markers
+ for(const w of ART.enemyWarnings){
+  const left=Math.max(0,w.fireAt-now);
+  const blink=Math.floor(left/65)%2===0;
+  g.strokeStyle=blink?"#ff4938":"#ffd067";
+  g.lineWidth=4;
+  g.beginPath();
+  g.moveTo(w.x-14,454);g.lineTo(w.x+14,454);
+  g.moveTo(w.x,440);g.lineTo(w.x,468);
+  g.stroke();
+  g.fillStyle=blink?"#ffb298":"#ffdf87";
+  g.font="bold 12px monospace";g.textAlign="center";
+  g.fillText("!",w.x,435);
+ }
+
+ // Incoming fire
+ for(const es of ART.enemyShots){
+  g.fillStyle="#ff4c36";g.fillRect(es.x-3,es.y-3,7,7);
+  g.fillStyle="rgba(255,96,58,.38)";g.fillRect(es.x-1,es.y-12,3,10);
+ }
+
+ // Cannon
+ const gx=ART.cannonX;
+ g.fillStyle="#252823";g.fillRect(gx-28,431,56,23);
+ g.fillStyle="#4c5342";g.fillRect(gx-21,421,42,20);
+ g.fillStyle="#292e28";g.fillRect(gx-5,385,10,42);
+ g.fillStyle="#767d61";g.fillRect(gx-3,378,6,14);
+ g.fillStyle="#20231e";
+ g.beginPath();g.arc(gx-17,455,10,0,Math.PI*2);g.arc(gx+17,455,10,0,Math.PI*2);g.fill();
+
+ // HUD
+ g.fillStyle="rgba(25,7,6,.92)";g.fillRect(14,14,740,48);
+ g.strokeStyle="#c34a3e";g.lineWidth=2;g.strokeRect(14,14,740,48);
+ g.fillStyle="#ffd5a4";g.font="bold 15px monospace";g.textAlign="left";
+ g.fillText("ABSOLUTER GEMETZELMODUS",28,44);
+ g.textAlign="right";
+ g.fillText("OVERLEVD: "+elapsed.toFixed(1).replace(".",",")+" SEK",738,44);
+
+ if(!ART.running && ART.gemetzelGameOver){
+  g.fillStyle="rgba(18,3,3,.88)";g.fillRect(82,128,604,220);
+  g.strokeStyle="#cf493d";g.lineWidth=4;g.strokeRect(82,128,604,220);
+  g.fillStyle="#ffcfaa";g.textAlign="center";
+  g.font="bold 26px monospace";g.fillText("DU BLE TRUFFET!",384,178);
+  g.fillStyle="#ff7864";g.font="bold 17px monospace";
+  g.fillText("«Leck es, du englischer Schurke!»",384,220);
+  g.fillStyle="#f1ddbd";g.font="bold 20px monospace";
+  g.fillText("OVERLEVD: "+ART.gemetzelSurvival.toFixed(1).replace(".",",")+" SEK",384,270);
+  g.font="bold 15px monospace";
+  g.fillText("REKORD: "+GEMETZEL_BEST.toFixed(1).replace(".",",")+" SEK",384,306);
+  g.textAlign="left";
+ }else if(!ART.running){
+  g.fillStyle="rgba(18,3,3,.84)";g.fillRect(92,132,584,205);
+  g.strokeStyle="#cf493d";g.lineWidth=4;g.strokeRect(92,132,584,205);
+  g.fillStyle="#ffd0a8";g.textAlign="center";
+  g.font="bold 27px monospace";g.fillText("ABSOLUTER GEMETZELMODUS!",384,181);
+  g.font="bold 15px monospace";g.fillText("INGEN SKYTING. INGEN NÅDE. BARE OVERLEV.",384,222);
+  g.font="13px monospace";g.fillText("A/D eller ←/→ · FØRSTE TREFF = TAP",384,257);
+  g.fillStyle="#e38a72";g.fillText("FLYET OG ILDEN BLIR RASKERE HELE TIDEN",384,292);
+  g.textAlign="left";
+ }
+}
+
 function drawArtillery(now){
+ if(ART.mode==="gemetzel"){drawGemetzel(now);return}
  const g=artCtx;
  const W=artCanvas.width,H=artCanvas.height;
 
@@ -1886,16 +2335,39 @@ function drawArtillery(now){
  g.fillStyle="#5a211e";g.fillRect(41,4,2,26);              // wing strut
  g.restore();
 
- // shells
+ // Egne granater
  for(const sh of ART.shells){
   g.fillStyle="#f1d58a";g.fillRect(sh.x-2,sh.y-7,4,8);
   g.fillStyle="rgba(245,218,148,.28)";g.fillRect(sh.x-1,sh.y,2,11);
  }
 
+ // Varsel på bakken: flytt kanonen før flyet skyter.
+ for(const w of ART.enemyWarnings){
+  const left=Math.max(0,w.fireAt-now);
+  const blink=Math.floor(left/110)%2===0;
+  g.strokeStyle=blink?"#d85d4f":"#f0c86c";
+  g.lineWidth=3;
+  g.beginPath();
+  g.moveTo(w.x-12,454);g.lineTo(w.x+12,454);
+  g.moveTo(w.x,442);g.lineTo(w.x,466);
+  g.stroke();
+  g.fillStyle=blink?"#f0d3a2":"#d85d4f";
+  g.font="bold 10px monospace";g.textAlign="center";
+  g.fillText("!",w.x,438);g.textAlign="left";
+ }
+
+ // Flyets skudd
+ for(const es of ART.enemyShots){
+  g.fillStyle="#de6a52";g.fillRect(es.x-2,es.y-2,5,5);
+  g.fillStyle="rgba(236,122,88,.30)";g.fillRect(es.x-1,es.y-8,2,7);
+ }
+
  // explosions
  for(const b of ART.bursts){
   const r=6+b.t*38;
-  g.fillStyle="rgba(237,174,72,"+Math.max(0,1-b.t*1.8)+")";
+  g.fillStyle=b.enemy
+   ?("rgba(210,82,61,"+Math.max(0,1-b.t*1.8)+")")
+   :("rgba(237,174,72,"+Math.max(0,1-b.t*1.8)+")");
   g.beginPath();g.arc(b.x,b.y,r,0,Math.PI*2);g.fill();
   g.fillStyle="rgba(105,78,55,"+Math.max(0,.8-b.t)+")";
   g.beginPath();g.arc(b.x+7,b.y-4,r*.55,0,Math.PI*2);g.fill();
@@ -1903,6 +2375,11 @@ function drawArtillery(now){
 
  // gun
  const gx=ART.cannonX;
+ const cannonStunned=ART.running && now<ART.cannonStunUntil;
+ if(cannonStunned && Math.floor(now/90)%2===0){
+  g.fillStyle="rgba(221,92,70,.36)";
+  g.fillRect(gx-36,376,72,90);
+ }
  g.fillStyle="#31342e";g.fillRect(gx-28,431,56,23);
  g.fillStyle="#515846";g.fillRect(gx-21,421,42,20);
  g.fillStyle="#2e332c";g.fillRect(gx-5,385,10,42);
@@ -1917,8 +2394,12 @@ function drawArtillery(now){
  g.fillStyle="#f1dfad";g.font="bold 18px monospace";g.textAlign="left";
  const diff=artilleryDifficulty(now);
  g.fillText("NIVÅ "+diff.level,28,42);
- g.textAlign="center";g.fillText("TREFF: "+ART.score,384,42);
+ g.textAlign="center";g.fillText("POENG: "+ART.score,384,42);
  g.textAlign="right";g.fillText("TID: "+remaining,738,42);
+ if(ART.running&&now<ART.cannonStunUntil){
+  g.fillStyle="#f2b09b";g.font="bold 12px monospace";g.textAlign="center";
+  g.fillText("TRUFFET! -1 POENG",384,78);
+ }
 
  if(!ART.running){
   g.fillStyle="rgba(10,11,9,.76)";g.fillRect(126,145,516,158);
@@ -1929,9 +2410,10 @@ function drawArtillery(now){
    g.font="bold 24px monospace";g.fillText("TREFF: "+ART.score,384,232);
    g.font="bold 16px monospace";g.fillText("BESTE: "+Math.max(S.artilleryBest,ART.score),384,268);
   }else{
-   g.font="bold 29px monospace";g.fillText("SKYT NED DET RØDE FLYET",384,195);
-   g.font="bold 17px monospace";g.fillText("60 SEKUNDER · DET BLIR VANSKELIGERE",384,237);
-   g.font="13px monospace";g.fillText("A/D eller ←/→ · MELLOMROM for å skyte",384,271);
+   g.font="bold 29px monospace";g.fillText("STOPP DEN RØDE BARON!",384,190);
+   g.font="bold 16px monospace";g.fillText("60 SEKUNDER · FLYET SKYTER TILBAKE",384,226);
+   g.font="13px monospace";g.fillText("A/D eller ←/→: FLYTT · MELLOMROM: SKYT",384,258);
+   g.font="12px monospace";g.fillText("VARSEL PÅ BAKKEN = FLYTT DEG!",384,283);
   }
   g.textAlign="left";
  }
@@ -1946,11 +2428,15 @@ function artilleryKeyDown(e){
  }
  if(e.key==="Escape"){closeArtillery();return}
  if(!ART.running){
-  if(e.key==="Enter"||e.key===" "){startArtillery();return}
+  if(e.key==="Enter"||e.key===" "){
+   if(ART.mode==="gemetzel"&&GEMETZEL_UNLOCKED)startGemetzel();
+   else startArtillery();
+   return;
+  }
  }
  if(k==="a"||e.key==="ArrowLeft")ART.heldLeft=true;
  if(k==="d"||e.key==="ArrowRight")ART.heldRight=true;
- if(e.key===" "||e.key==="Enter"){
+ if(ART.mode!=="gemetzel"&&(e.key===" "||e.key==="Enter")){
   if(e.repeat)return;
   artilleryFire();
  }
@@ -1965,6 +2451,7 @@ function artilleryKeyUp(e){
 document.getElementById("artilleryBtn").addEventListener("click",openArtillery);
 document.getElementById("artilleryCloseBtn").addEventListener("click",closeArtillery);
 document.getElementById("artilleryStartBtn").addEventListener("click",startArtillery);
+document.getElementById("gemetzelStartBtn").addEventListener("click",startGemetzel);
 document.getElementById("artLeftBtn").addEventListener("pointerdown",()=>ART.heldLeft=true);
 document.getElementById("artLeftBtn").addEventListener("pointerup",()=>ART.heldLeft=false);
 document.getElementById("artLeftBtn").addEventListener("pointerleave",()=>ART.heldLeft=false);
