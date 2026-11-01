@@ -141,95 +141,294 @@ canvas{display:block;width:100%;height:auto;border:2px solid #070807;image-rende
 #status{display:flex;justify-content:space-between;margin-top:6px;color:#d4d0c6;font:12px monospace}
 @media(max-width:930px){body{align-items:flex-start}.screen{width:100%}#gameLayout{grid-template-columns:1fr}#journal{max-height:290px;order:-1}}
 
-/* --- OPPDRAGSINTRO --- */
+/* --- OPPDRAGSINTRO: KONVOLUTT + BREV --- */
 #missionScreen{
   display:none;
   min-height:100vh;
   align-items:center;
   justify-content:center;
   background:
-    linear-gradient(rgba(15,14,12,.70),rgba(15,14,12,.88)),
-    radial-gradient(circle at 50% 25%,rgba(155,119,76,.22),transparent 45%),
+    linear-gradient(rgba(15,14,12,.70),rgba(15,14,12,.90)),
+    radial-gradient(circle at 50% 25%,rgba(155,119,76,.24),transparent 45%),
     #1b1916;
   color:#f0e7d1;
-  padding:28px;
+  padding:24px;
   box-sizing:border-box;
 }
-#missionCard{
-  width:min(860px,94vw);
-  border:2px solid #8e744f;
-  background:rgba(28,25,21,.96);
-  box-shadow:0 20px 70px rgba(0,0,0,.58);
-  padding:34px 38px 30px;
+#missionStage{
+  width:min(900px,96vw);
+  min-height:590px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
   position:relative;
+}
+#missionEnvelopeView,
+#missionLetterView{
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+#missionLetterView{display:none}
+
+/* Konvolutten */
+#missionEnvelope{
+  width:min(520px,82vw);
+  aspect-ratio:1.55/1;
+  position:relative;
+  cursor:pointer;
+  filter:drop-shadow(0 24px 32px rgba(0,0,0,.48));
+  transform:translateY(0);
+  transition:transform .18s ease,filter .18s ease;
+  user-select:none;
+}
+#missionEnvelope:hover,
+#missionEnvelope:focus{
+  transform:translateY(-5px) scale(1.012);
+  filter:drop-shadow(0 28px 38px rgba(0,0,0,.58));
+  outline:none;
+}
+.envelopeBack{
+  position:absolute;
+  inset:0;
+  background:#c9aa76;
+  border:3px solid #705a3b;
+  box-shadow:inset 0 0 0 2px rgba(255,239,198,.18);
+}
+.envelopeLeft,
+.envelopeRight{
+  position:absolute;
+  bottom:0;
+  width:52%;
+  height:72%;
+  background:#b99561;
+  border-bottom:3px solid #705a3b;
+}
+.envelopeLeft{
+  left:0;
+  clip-path:polygon(0 0,100% 100%,0 100%);
+}
+.envelopeRight{
+  right:0;
+  clip-path:polygon(100% 0,0 100%,100% 100%);
+}
+.envelopeFlap{
+  position:absolute;
+  left:0;top:0;
+  width:100%;height:64%;
+  background:#d2b584;
+  clip-path:polygon(0 0,100% 0,50% 100%);
+  border-top:3px solid #705a3b;
+  transform-origin:top center;
+  transition:transform .38s ease;
+  z-index:3;
+}
+#missionEnvelope.opening .envelopeFlap{
+  transform:rotateX(165deg);
+}
+.envelopeSeal{
+  position:absolute;
+  left:50%;top:51%;
+  width:68px;height:68px;
+  transform:translate(-50%,-50%);
+  border-radius:50%;
+  background:
+    radial-gradient(circle at 35% 28%,#bc5c4c 0 12%,transparent 13%),
+    radial-gradient(circle,#8f302a 0 56%,#68231f 57% 72%,#4f1916 73%);
+  border:3px solid #54201c;
+  box-shadow:0 4px 7px rgba(0,0,0,.3);
+  z-index:5;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:#e7b09d;
+  font:900 25px Georgia,serif;
+}
+.envelopeOpenText{
+  position:absolute;
+  left:50%;
+  bottom:30px;
+  transform:translateX(-50%);
+  z-index:6;
+  white-space:nowrap;
+  color:#3b2a1d;
+  background:rgba(239,218,178,.88);
+  border:2px solid #6b5134;
+  padding:9px 16px;
+  font:900 17px/1 monospace;
+  letter-spacing:.08em;
+  box-shadow:0 3px 0 rgba(67,45,27,.25);
+}
+.envelopeCaption{
+  position:absolute;
+  left:50%;
+  top:calc(50% + min(215px,37vw));
+  transform:translateX(-50%);
+  color:#c9b99b;
+  font:800 12px/1.4 monospace;
+  letter-spacing:.06em;
+  white-space:nowrap;
+}
+
+/* Brevet */
+#missionCard{
+  width:min(790px,94vw);
+  border:3px solid #7a603e;
+  background:
+    linear-gradient(rgba(239,224,188,.96),rgba(224,204,163,.97)),
+    #e7d2a7;
+  color:#2f291f;
+  box-shadow:0 24px 75px rgba(0,0,0,.62);
+  padding:32px 36px 28px;
+  position:relative;
+  transform:rotate(-.3deg);
 }
 #missionCard:before{
   content:"";
   position:absolute;
-  inset:8px;
-  border:1px solid rgba(197,170,119,.22);
+  inset:9px;
+  border:1px solid rgba(85,59,34,.26);
   pointer-events:none;
 }
 #missionKicker{
-  font:700 13px/1.3 monospace;
+  font:900 12px/1.3 monospace;
   letter-spacing:2px;
-  color:#c9aa72;
-  margin-bottom:12px;
+  color:#6e5535;
+  margin-bottom:8px;
 }
 #missionCard h1{
+  margin:0 0 6px;
+  font:800 31px/1.1 Georgia,serif;
+  color:#2b251d;
+}
+#missionLead{
   margin:0 0 18px;
-  font:700 34px/1.1 Georgia,serif;
-  color:#f4ead2;
+  font:700 17px/1.45 Georgia,serif;
+  color:#463a2c;
 }
-#missionCard p{
-  font:18px/1.55 Georgia,serif;
-  margin:0 0 15px;
-  max-width:760px;
+#missionGoal{
+  margin:0 0 20px;
+  padding:13px 15px;
+  border-left:5px solid #8b3d31;
+  background:rgba(122,75,47,.09);
+  font:800 18px/1.35 Georgia,serif;
 }
-#missionCard .question{
-  margin:22px 0 18px;
-  padding:15px 18px;
-  border-left:4px solid #c2a169;
-  background:rgba(194,161,105,.09);
-  font-size:21px;
+#missionSteps{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin:0 0 18px;
 }
-#missionOrder{
-  margin:22px 0 24px;
-  padding:17px 18px;
-  background:#12110f;
-  border:1px solid #66543c;
-  font:15px/1.55 monospace;
+.missionStep{
+  display:flex;
+  gap:12px;
+  align-items:center;
+  min-height:78px;
+  padding:11px 12px;
+  background:rgba(83,61,37,.07);
+  border:1px solid rgba(83,61,37,.25);
 }
-#missionOrder strong{color:#e2c07b;}
+.missionStepNumber{
+  flex:0 0 36px;
+  width:36px;height:36px;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:#5b4930;
+  color:#f3dfb5;
+  font:900 16px monospace;
+}
+.missionStepText{
+  font:800 15px/1.35 Arial,sans-serif;
+}
+.missionStepText small{
+  display:block;
+  margin-top:3px;
+  font:600 12px/1.35 Arial,sans-serif;
+  color:#665846;
+}
+#controlStrip{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-wrap:wrap;
+  gap:10px 16px;
+  padding:12px;
+  background:#2d2922;
+  color:#f2e4c5;
+  border:2px solid #6f5a3d;
+}
+.controlItem{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  font:800 12px/1.2 Arial,sans-serif;
+}
+.keycap{
+  min-width:30px;
+  height:30px;
+  padding:0 7px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  box-sizing:border-box;
+  border:2px solid #bba272;
+  border-bottom-width:4px;
+  border-radius:4px;
+  background:#eee1bd;
+  color:#30291e;
+  font:900 13px/1 monospace;
+  box-shadow:0 2px 0 #3e3528;
+}
+.keycap.wide{min-width:58px}
+#missionReminder{
+  margin:14px 0 0;
+  text-align:center;
+  color:#65422e;
+  font:900 14px/1.4 Arial,sans-serif;
+}
 #missionActions{
   display:flex;
   gap:12px;
+  justify-content:center;
   flex-wrap:wrap;
-  margin-top:22px;
+  margin-top:18px;
 }
-#missionActions button{
-  border:1px solid #8e744f;
-  background:#2d2923;
-  color:#eee4cb;
+#missionActions button,
+#envelopeBackBtn{
+  border:1px solid #705a3b;
+  background:#493a2a;
+  color:#f2e4c5;
   padding:12px 18px;
-  font:bold 14px monospace;
+  font:bold 13px monospace;
   cursor:pointer;
 }
 #missionActions button.primary{
-  background:#b28d51;
-  color:#17130e;
-  border-color:#d1ae6e;
+  background:#8b3d31;
+  color:#fff0d3;
+  border-color:#5e2821;
+  font-size:15px;
+  padding:13px 22px;
 }
-#missionActions button:hover{filter:brightness(1.12);}
-#missionHint{
-  margin-top:18px;
-  color:#a99b83;
-  font:12px/1.4 monospace;
+#missionActions button:hover,
+#envelopeBackBtn:hover{filter:brightness(1.12)}
+#envelopeBackBtn{
+  position:absolute;
+  left:18px;
+  bottom:12px;
+  opacity:.8;
 }
 @media (max-width:700px){
-  #missionCard{padding:26px 22px;}
-  #missionCard h1{font-size:28px;}
-  #missionCard p{font-size:16px;}
+  #missionStage{min-height:540px}
+  #missionCard{padding:25px 20px 22px}
+  #missionCard h1{font-size:26px}
+  #missionLead{font-size:15px}
+  #missionGoal{font-size:16px}
+  #missionSteps{grid-template-columns:1fr}
+  .missionStep{min-height:62px}
+  .envelopeCaption{display:none}
 }
 
 
@@ -648,27 +847,87 @@ canvas{display:block;width:100%;height:auto;border:2px solid #070807;image-rende
 
 
 <section id="missionScreen" class="screen">
-  <div id="missionCard">
-    <div id="missionKicker">JULI 1916 · VESTFRONTEN · SOMME I FRANKRIKE</div>
-    <h1>Hvorfor er Timmy her?</h1>
+  <div id="missionStage">
 
-    <p>Unge <strong>Timmy Dickinson</strong> har sin første dag i felten etter å ha vervet seg til den britiske hæren.</p>
-
-    <p>Bare noen dager tidligere ble over <strong>19 000 britiske soldater drept på én dag</strong> ved Somme.</p>
-
-    <div class="question">
-      Hvorfor er Timmy her?
+    <div id="missionEnvelopeView">
+      <div id="missionEnvelope" role="button" tabindex="0" aria-label="Åpne brevet">
+        <div class="envelopeBack"></div>
+        <div class="envelopeLeft"></div>
+        <div class="envelopeRight"></div>
+        <div class="envelopeFlap"></div>
+        <div class="envelopeSeal">TB</div>
+        <div class="envelopeOpenText">ÅPNE MEG</div>
+      </div>
+      <div class="envelopeCaption">Du har fått et brev før du går ut i felten.</div>
+      <button id="envelopeBackBtn">TILBAKE</button>
     </div>
 
-    <p>Gå rundt i området og snakk med menneskene du møter. Undersøk også kildene du finner. Bruk sporene til å finne ut hvorfor en ung gutt frivillig valgte å dra i krig.</p>
+    <div id="missionLetterView">
+      <div id="missionCard">
+        <div id="missionKicker">JULI 1916 · SOMME, FRANKRIKE</div>
+        <h1>ORDRE TIL TIMMY</h1>
+        <div id="missionLead">Du er <strong>Timmy Dickinson</strong>, en ung britisk soldat. Oppdraget ditt er enkelt:</div>
 
-    <p><em>Kanskje du ville ha tenkt som Timmy dersom du hadde levd på hans tid?</em></p>
+        <div id="missionGoal">FINN UT: Hvorfor meldte unge menn seg frivillig til første verdenskrig?</div>
 
-    <div id="missionActions">
-      <button class="primary" id="beginMission">START UNDERSØKELSEN</button>
-      <button id="missionBack">TILBAKE</button>
+        <div id="missionSteps">
+          <div class="missionStep">
+            <div class="missionStepNumber">1</div>
+            <div class="missionStepText">GÅ RUNDT
+              <small>Finn mennesker, brev, aviser og andre ting.</small>
+            </div>
+          </div>
+
+          <div class="missionStep">
+            <div class="missionStepNumber">2</div>
+            <div class="missionStepText">GÅ BORT TIL DEM
+              <small>Når du står nær nok, får du beskjed på skjermen.</small>
+            </div>
+          </div>
+
+          <div class="missionStep">
+            <div class="missionStepNumber">3</div>
+            <div class="missionStepText">TRYKK E
+              <small>Da snakker du, undersøker eller plukker opp ting.</small>
+            </div>
+          </div>
+
+          <div class="missionStep">
+            <div class="missionStepNumber">4</div>
+            <div class="missionStepText">FINN MINST 7 SPOR
+              <small>Les det folk sier. Svar på spørsmålene underveis.</small>
+            </div>
+          </div>
+        </div>
+
+        <div id="controlStrip">
+          <div class="controlItem">
+            <span class="keycap">W</span><span class="keycap">A</span><span class="keycap">S</span><span class="keycap">D</span>
+            <span>= GÅ</span>
+          </div>
+          <div class="controlItem">
+            <span class="keycap">←</span><span class="keycap">↑</span><span class="keycap">↓</span><span class="keycap">→</span>
+            <span>= GÅ</span>
+          </div>
+          <div class="controlItem">
+            <span class="keycap wide">E</span>
+            <span>= SNAKK / UNDERSØK / PLUKK OPP</span>
+          </div>
+          <div class="controlItem">
+            <span class="keycap wide">ESC</span>
+            <span>= MENY</span>
+          </div>
+        </div>
+
+        <div id="missionReminder">IKKE STRESS. LES DET FOLK SIER.</div>
+
+        <div id="missionActions">
+          <button class="primary" id="beginMission">JEG ER KLAR – START</button>
+          <button id="missionBack">LUKK BREVET</button>
+        </div>
+      </div>
     </div>
-    <div id="missionHint">WASD / piltaster: bevege · E / Enter: snakk · ESC: meny</div>
+
   </div>
 </section>
 
@@ -1026,11 +1285,45 @@ function resetGameState(){
  render();updateHud();updateSaveMenu();
 }
 
+function showMissionEnvelope(){
+ const envelopeView=document.getElementById("missionEnvelopeView");
+ const letterView=document.getElementById("missionLetterView");
+ const envelope=document.getElementById("missionEnvelope");
+ envelopeView.style.display="flex";
+ letterView.style.display="none";
+ envelope.classList.remove("opening");
+}
+
+function openMissionLetter(){
+ const envelope=document.getElementById("missionEnvelope");
+ if(envelope.classList.contains("opening"))return;
+ envelope.classList.add("opening");
+ setTimeout(()=>{
+  document.getElementById("missionEnvelopeView").style.display="none";
+  document.getElementById("missionLetterView").style.display="flex";
+ },330);
+}
+
 function openMissionIntro(){
  menu.style.display="none";
  game.style.display="none";
  missionScreen.style.display="flex";
+ showMissionEnvelope();
 }
+
+document.getElementById("missionEnvelope").addEventListener("click",openMissionLetter);
+document.getElementById("missionEnvelope").addEventListener("keydown",(e)=>{
+ if(e.key==="Enter"||e.key===" "){
+  e.preventDefault();
+  openMissionLetter();
+ }
+});
+document.getElementById("envelopeBackBtn").addEventListener("click",()=>{
+ missionScreen.style.display="none";
+ game.style.display="none";
+ menu.style.display="block";
+ updateSaveMenu();
+});
 
 document.getElementById("continueGame").addEventListener("click",()=>{
  const data=getSaveData();
@@ -1074,10 +1367,7 @@ document.getElementById("beginMission").addEventListener("click",()=>{
 });
 
 document.getElementById("missionBack").addEventListener("click",()=>{
- missionScreen.style.display="none";
- game.style.display="none";
- menu.style.display="block";
- updateSaveMenu();
+ showMissionEnvelope();
 });
 
 document.getElementById("back").addEventListener("click",()=>{
